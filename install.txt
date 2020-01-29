@@ -1,0 +1,17 @@
+#!/bin/bash
+
+yum install httpd -y
+service httpd restart
+chkconfig httpd on
+yum install php -y
+service httpd restart
+sudo mkfs -t ext4 /dev/xvdb
+sudo mount /dev/xvdb /var/www/html
+sudo echo "/dev/xvdb /var/www/html ext4 defults 1 1" >> /etc/fstab
+sed -i "s/index.html/index.php/g" /etc/httpd/conf/httpd.conf
+touch /var/www/html/index.php
+cat >> /var/www/html/index.php << EOF
+<?php
+echo gethostname(); // may output e.g,: Jain
+?>
+EOF
