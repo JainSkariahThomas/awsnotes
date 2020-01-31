@@ -32,16 +32,17 @@ aws ec2 create-tags --resources $PrivatevpcId --tags Key=Name,Value=$PrivateVPC 
 
 echo "Now switch back to defult region where internetgateway is created"
 
-VPCpeeringID=`aws ec2 create-vpc-peering-connection --vpc-id $vpcId --peer-vpc-id $PrivatevpcId --peer-region us-east-1 --query 'VpcPeeringConnection.VpcPeeringConnectionId' --output text`
+aws ec2 create-vpc-peering-connection --vpc-id $vpcId --peer-vpc-id $PrivatevpcId --peer-region us-east-1
+PeerID=`aws ec2 describe-vpc-peering-connections --filters Name=status-code,Values=pending-acceptance --query 'VpcPeeringConnections[].VpcPeeringConnectionId' --output text`
 
 echo "Now swicth to private vpc region and accept the peering connection"
 
-aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id $VPCpeeringID --profile virginaaccount
+aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id $PeerID --profile virginaaccount
 echo "Creating the Subnet associated with the VPC"
 aws ec2 describe-availability-zones --profile virginaaccount
 read -p "Please mention the subnet = " PrivateAZsub
 
-Privatesubnetid=`aws ec2 create-subnet --vpc-id $PrivatevpcId --cidr-block $Privatesubnetipadd --availability-zone $PrivateAZsub --query 'Subnet.SubnetId' --output text` --profile virginaaccount
+Privatesubnetid=`aws ec2 create-subnet --vpc-id $PrivatevpcId --cidr-block $Privatesubnetipadd --availability-zone $PrivateAZsub --query 'Subnet.SubnetId' --output text --profile virginaaccount`
 
 read -p "Please enter the subnet name = " Privatesubnetname
 aws ec2 create-tags --resources $Privatesubnetid --tags Key=Name,Value=$Privatesubnetname --profile virginaaccount
@@ -49,18 +50,18 @@ aws ec2 create-tags --resources $Privatesubnetid --tags Key=Name,Value=$Privates
 echo "Creating RouteTable for the VPC"
 read -p "Please enter the router table name = " PrivaterouterName
 
-PrivateRouteTable=`aws ec2 create-route-table --vpc-id $PrivatevpcId --query 'RouteTable.RouteTableId' --output text` --profile virginaaccount
+PrivateRouteTable=`aws ec2 create-route-table --vpc-id $PrivatevpcId --query 'RouteTable.RouteTableId' --output text --profile virginaaccount`
 aws ec2 create-tags --resources $PrivateRouteTable --tags Key=Name,Value=$PrivaterouterName --profile virginaaccount
 
 echo "Setting up associated-route-table"
-AssociationIdPrivate=`aws ec2 associate-route-table --route-table-id $PrivateRouteTable --subnet-id $Privatesubnetid --query 'AssociationId' --output text` --profile virginaaccount
+AssociationIdPrivate=`aws ec2 associate-route-table --route-table-id $PrivateRouteTable --subnet-id $Privatesubnetid --query 'AssociationId' --output text --profile virginaaccount`
 
 echo "Creating a route Table"
 aws ec2 create-route --route-table-id $PrivateRouteTable --destination-cidr-block $vpcCidrBlock --vpc-peering-connection-id $VPCpeeringID --profile virginaaccount
 
 read -p "First security rule name = " Firstinstance1
 read -p "Second security rule name = " Secondinstance2
-Privatesecurityid=`aws ec2 create-security-group --group-name $Firstinstance1 --description "port 22 allowed" --vpc-id $PrivatevpcId --query 'GroupId' --output text` --profile virginaaccount
+Privatesecurityid=`aws ec2 create-security-group --group-name $Firstinstance1 --description "port 22 allowed" --vpc-id $PrivatevpcId --query 'GroupId' --output text --profile virginaaccount`
 aws ec2 authorize-security-group-ingress --group-id $Privatesecurityid --protocol tcp --port 22 --cidr $vpcCidrBlock --profile virginaaccount
 aws ec2 authorize-security-group-ingress --group-id $Privatesecurityid --protocol tcp --port 22 --cidr $subnetipadd --profile virginaaccount
 aws ec2 authorize-security-group-ingress --group-id $Privatesecurityid --protocol tcp --port 3306 --cidr $subnetipadd --profile virginaaccount
@@ -88,7 +89,7 @@ PublicassociationId1=`aws ec2 associate-route-table --route-table-id $RouteTable
 
 echo "Creating a route Table"
 aws ec2 create-route --route-table-id $RouteTable1 --destination-cidr-block 0.0.0.0/0 --gateway-id $internetGatewayId
-aws ec2 create-route --route-table-id $RouteTable1 --destination-cidr-block $PrivateCidrBlock --vpc-peering-connection-id $VPCpeeringID
+aws ec2 create-route --route-table-id $RouteTable1 --destination-cidr-block $PrivateCidrBlock --vpc-peering-connection-id $PeerID
 PublicsecurityID=`aws ec2 create-security-group --group-name $Secondinstance2 --description "port 22 allowed from internal" --vpc-id $vpcId --query 'GroupId' --output text`
 
 
