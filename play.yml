@@ -1,0 +1,160 @@
+---
+  - name: "Ansible Lab Creation"
+    hosts: localhost
+
+    vars:
+      debug_enable: true
+      key_pair: ansible-lab 
+      region: us-east-2
+      sgroup: ansible-lab
+      instance_type: t2.micro
+      client_ami: ami-0d8f6eb4f641ef691
+      client_user: ec2-user
+      master_ami: ami-0d8f6eb4f641ef691
+      master_user: ec2-user
+    tasks:
+
+      - name: "labCreation - Creating New KeyPair"
+        ec2_key:
+          region: "{{ region }}"
+          name: "{{ key_pair }}"
+        register: key_out
+
+      - debug: var=key_out
+        when: debug_enable
+
+      - name: "labCreation - Saving Public KeyContent"
+        copy: 
+          content: "{{ key_out.key.private_key}}"
+          dest: "{{ key_pair }}.pub"
+          mode: "0400"
+        when: key_out.changed
+
+      - name: "labCreation - Creating Security Group"
+        ec2_group:
+          name: "{{ sgroup }}"
+          description: "Security Group For Ansible Lab"
+          region: "{{ region }}"
+          rules:
+            - proto: all
+              cidr_ip: 0.0.0.0/0
+          rules_egress:
+            - proto: all
+              cidr_ip: 0.0.0.0/0
+
+      - name: "labCreation - Creating Client Instance"
+        ec2:
+          instance_type: "{{instance_type}}"
+          key_name: "{{key_pair}}"
+          image: "{{client_ami}}"
+          region: "{{region}}"
+          group: "{{sgroup}}"
+          wait: yes
+          count_tag:
+            Name: "ansible/Client"
+          instance_tags:
+            Name: "ansible/Client"
+            role: "ansible-lab"
+          exact_count: 1
+        register: client_out 
+
+      - debug: var=client_out
+        when: debug_enable
+
+      - name: "labCreation - Creating Master Instance"
+        ec2:
+          instance_type: "{{instance_type}}"
+          key_name: "{{key_pair}}"
+          image: "{{master_ami}}"
+          region: "{{region}}"
+          group: "{{sgroup}}"
+          wait: yes
+          count_tag:
+            Name: "ansible/Master"
+          instance_tags:
+            Name: "ansible/Master"
+            role: "ansible-lab"
+          exact_count: 1
+        register: master_out 
+      
+      - debug: var=master_out
+        when: debug_enable
+
+
+      - name: "labCreation - Waiting For Master To Come Online"
+        wait_for:
+          port: 22
+          host: "{{ master_out.tagged_instances.0.public_ip }}"
+          timeout: 20
+          state: started
+          delay: 5
+
+      - name: "labCreation - Adding Master To Inventory"
+        add_host:
+          hostname: master
+          ansible_host: "{{ master_out.tagged_instances.0.public_ip }}"
+          ansible_port: 22
+          ansible_user: "{{ master_user }}"
+          ansible_ssh_private_key_file: "{{ key_pair }}.pub"
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+      - name: "labCreation - Installing Ansible on Master"
+        become: yes 
+        delegate_to: master
+        shell: 'amazon-linux-extras install ansible2 -y'
+
+      - name: "labCreation - Creating /home/{{ master_user}}/ansible Directory"
+        delegate_to: master
+        file:
+          path: /home/{{master_user}}/ansible
+          state: directory
+      
+      - name: "labCreation - Uploading Public Key"
+        delegate_to: master
+        become: true
+        copy:
+          dest: "/home/{{master_user}}/ansible/{{key_pair}}.pem" 
+          src: "./{{ key_pair }}.pub"
+
+      - name: "labCreation - Creating /home/{{ master_user}}/ansible/inventory.ini"
+        delegate_to: master
+        copy:
+          content: "{{client_out.tagged_instances.0.private_ip}} ansible_user={{client_user}} ansible_ssh_private_key_file={{key_pair}}.pem"
+          dest: "/home/{{ master_user}}/ansible/inventory.ini"
+
+      - name: "labCreation - Creating /home/{{ master_user}}/ansible/ansible.cfg"
+        delegate_to: master
+        template:
+          src: ansible.cfg.j2
+          dest: "/home/{{ master_user}}/ansible/ansible.cfg"
+
+
+      - name: "labDestroy - Gathering Information About Lab Instances."
+        ec2_instance_facts:
+          region: "{{ region }}"
+          filters:
+            instance-state-name: [ "shutting-down", "stopping", "stopped","running"]
+            "tag:role": "ansible-lab"
+        register: out
+        tags: [ 'never', 'delete' ]
+
+      - debug: var=item.instance_id
+        when: debug_enable
+        with_items:
+          - "{{ out.instances }}" 
+        tags: [ 'never', 'delete' ]
+
+      - name: "labDestroy - Deleting Lab Instances"
+        ec2:
+          region: "{{ region }}"
+          instance_ids: "{{ item.instance_id }}"
+          state: absent
+        with_items:
+          - "{{ out.instances }}" 
+        tags: [ 'never', 'delete' ] 
+
+
+
+
+
+

@@ -34,7 +34,8 @@ echo "Now switch back to defult region where internetgateway is created"
 
 aws ec2 create-vpc-peering-connection --vpc-id $vpcId --peer-vpc-id $PrivatevpcId --peer-region us-east-1
 PeerID=`aws ec2 describe-vpc-peering-connections --filters Name=status-code,Values=pending-acceptance --query 'VpcPeeringConnections[].VpcPeeringConnectionId' --output text`
-
+echo "$PeerID"
+echo " "
 echo "Now swicth to private vpc region and accept the peering connection"
 
 aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id $PeerID --profile virginaaccount
