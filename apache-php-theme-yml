@@ -1,0 +1,35 @@
+---
+- hosts: apache
+  become: yes
+  tasks:
+    - name: install httpd
+      yum: name=httpd state=latest
+    - name: install php
+      yum: name=php state=latest
+    - name: restart httpd
+      service: name=httpd state=restarted
+    - name: Download Themes
+      get_url:
+        url: https://downloads.wordpress.org/theme/airi.zip
+        dest: /tmp
+    - name: unzip
+      unarchive:
+        src: /tmp/airi.1.0.10.zip
+        dest: /tmp
+        remote_src: yes
+    - name: Synchronization of two paths both on the control machine
+      copy:
+        src: /tmp/airi
+        dest: /var/www/html        
+        remote_src: yes
+    - name: rename httpdconf file
+      shell: sed -i "s/index.html/index.php/g" /etc/httpd/conf/httpd.conf
+    - name: restart httpd
+      service: name=httpd state=restarted
+    - name: commenting conf file
+      shell: sed -i "s/DocumentRoot/#DocumentRoot/g" /etc/httpd/conf/httpd.conf
+    - name: editing Document root in conf file
+      shell: echo "DocumentRoot /var/www/html/airi " >> /etc/httpd/conf/httpd.conf
+    - name: restart httpd
+      service: name=httpd state=restarted
+
