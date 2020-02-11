@@ -1,0 +1,32 @@
+---
+#This code copy web Templetes from the master server to the remote server. Then unzip it along with install apache,php and zip module in ubuntu server
+- hosts: webservers
+  remote_user: ubuntu
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: install apache2
+      apt: name=apache2 state=latest update_cache=true
+    - name: install php
+      apt: name=php state=latest
+    - name: install zip
+      apt: name=zip state=latest
+    - name: restart 
+      service: name=apache2 state=restarted
+    - name: Download Themes
+      copy:
+        src: /root/Ansible/unearth.zip
+        dest: /tmp
+    - name: unzip
+      unarchive:
+        src: /tmp/unearth.zip
+        dest: /tmp
+        remote_src: yes
+    - name: Synchronization of two paths both on the control machine
+      copy:
+        src: /tmp/unearth/
+        dest: /var/www/html        
+        remote_src: yes
+    - name: restart apache2
+      service: name=apache2 state=restarted
+
