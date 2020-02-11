@@ -1,0 +1,26 @@
+ hosts: apache
+  sudo: yes
+  tasks:
+    - name: install httpd
+      yum: name=httpd state=latest
+    - name: restart httpd
+      service: name=httpd state=restarted
+    - name: download
+      get_url:
+        url: https://downloads.wordpress.org/theme/airi.zip
+        dest: /var/www/html
+    - name: unzip
+      unarchive:
+        src: /var/www/html/airi.1.0.10.zip
+        dest: /var/www/html
+        remote_src: yes
+    - name: move content
+      file:
+        src: /var/www/html/airi
+        dest: /var/www/html
+        state: hard
+    - name: rename httpdconf file
+      shell: sed -i "s/index.html/index.php/g" /etc/httpd/conf/httpd.conf
+    - name: restart httpd
+      service: name=httpd state=restarted
+
