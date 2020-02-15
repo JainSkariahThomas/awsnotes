@@ -1,0 +1,182 @@
+---
+- hosts: master
+  become: yes
+  vars_files: 
+    - mysqlvariable.js2
+  tasks:
+    - name: install httpd
+      yum: name=httpd state=latest
+    - name: install php
+      yum: name=php,php-mysql state=latest
+    - name: mariadb-server
+      yum: name=mariadb-server,MySQL-python state=present
+    - name: mariadb-serverice restart
+      service: name=mariadb state=restarted enabled=true
+    - name: restart httpd
+      service: name=httpd state=restarted
+    - name: root passowrd secure for mysql
+      ignore_errors: true
+      mysql_user:
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
+        user: "root"
+        password: "{{ mysql_root_password }}"
+        host_all: true
+    - name: remove anonymous user
+      mysql_user:
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
+        user: ""
+        state: absent
+        host_all: true
+    - name: "Mariadb - Creating Extra Database"
+      mysql_db:
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
+        name: "{{ mysql_database}}"
+        state: present
+    - name: "Mariadb - Creating User And Setting Privileges"
+      mysql_user:
+        login_user: "root"
+        login_password: "{{ mysql_root_password }}"
+        name: "{{ mysql_user }}"
+        password: "{{ mysql_password }}"
+        state: present
+        priv: "{{ mysql_database }}.*:ALL"
+    - name: "Apache - Creating Virtualhost"
+      template:
+        src: virtualhost.j2
+        dest: "/etc/httpd/conf.d/{{ domain }}.conf"
+        owner: "{{ apache_user }}"
+        group: "{{ apache_group }}"
+            
+    - name: "Apache - Creating DocumentRoot"
+      file:
+        path: "/var/www/html/{{ domain }}"
+        state: directory
+        owner: "{{ apache_user }}"
+        group: "{{ apache_group }}"
+            
+    - name: "Apache - Uploading Sample pages"
+      copy:
+        src: "{{ item }}"
+        dest: "/var/www/html/{{ domain }}/"
+        owner: "{{ apache_user }}"
+        group: "{{ apache_group }}"
+      with_items:
+        - index.html
+        - index.php
+            
+    - name: "Apache - Resting/Enabling Service"
+      service:
+        name: httpd
+        state: restarted
+        enabled: true
+
+    - name: Download Themes
+      get_url:
+        url: https://wordpress.org/wordpress-4.7.8.tar.gz
+        dest: /tmp/wordpress.tar.gz
+    - name: unzip
+      unarchive:
+        src: /tmp/wordpress.tar.gz
+        dest: /tmp/
+        remote_src: yes
+    - name: Synchronization of two paths both on the control machine
+      copy:
+        src: /tmp/wordpress/
+        dest: /var/www/html/www.linux.com/        
+        remote_src: yes
+        owner: apache
+        group: apache
+            
+    - name: "Wordpress - Creating wp-config.php"
+      template:
+        src: wp-config.php.tmpl
+        dest: /var/www/html/www.linux.com/wp-config.php
+        owner: apache
+        group: apache
+/
+The below files are used to declare variable or we can direcly declare variables in  the ansible file 
+/
+#[root@ip-172-31-39-15 Ansible]# cat virtualhost.j2        
+## Created by ansible
+
+<virtualhost *:80>
+    servername {{ domain }}
+    documentroot /var/www/html/{{ domain }}
+    directoryindex index.php index.html
+</virtualhost>
+
+##
+#
+/
+This is defult wp-config.php files that we are uploading to the Client server as Templete as a result all the Variable explained on the file will be auto corrected. If you copy command then the varaible we mentioned wont be executed inside the file
+#        For Example: {{ mysql_database }} will be copied as it self rather than replacing with jaindb
+/
+#
+#[root@ip-172-31-39-15 Ansible]# cat wp-config.php.tmpl
+<?php
+
+
+// ** MySQL settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define( 'DB_NAME', '{{ mysql_database }}' );
+
+/** MySQL database username */
+define( 'DB_USER', '{{ mysql_user }}' );
+
+/** MySQL database password */
+define( 'DB_PASSWORD', '{{ mysql_password }}' );
+
+/** MySQL hostname */
+define( 'DB_HOST', 'localhost' );
+
+/** Database Charset to use in creating database tables. */
+define( 'DB_CHARSET', 'utf8' );
+
+/** The Database Collate type. Don't change this if in doubt. */
+define( 'DB_COLLATE', '' );
+
+
+define( 'AUTH_KEY',         'put your unique phrase here' );
+define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );
+define( 'LOGGED_IN_KEY',    'put your unique phrase here' );
+define( 'NONCE_KEY',        'put your unique phrase here' );
+define( 'AUTH_SALT',        'put your unique phrase here' );
+define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
+define( 'LOGGED_IN_SALT',   'put your unique phrase here' );
+define( 'NONCE_SALT',       'put your unique phrase here' );
+
+
+$table_prefix = 'wp_';
+
+
+define( 'WP_DEBUG', false );
+
+/* That's all, stop editing! Happy publishing. */
+
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';
+
+###
+#
+/
+This is files with details regarding the variable we declare
+/
+#
+#[root@ip-172-31-39-15 Ansible]# cat mysqlvariable.js2
+---
+mysql_root_password: "jainadmin"
+mysql_user: "jainwp"
+mysql_password: "jain123"
+mysql_database: "jaindb"
+domain: www.linux.com
+apache_user: apache
+apache_group: apache
+
