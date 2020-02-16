@@ -1,0 +1,19 @@
+---
+- hosts: local
+  connection: local
+  gather_facts: true
+  tasks:
+    - shell: rm -rf /home/ec2-user/IPlist.txt
+    - name: "Coping over the hosts file"
+      copy:
+        src: /etc/ansible/hosts
+        dest: /etc/ansible/hosts_old
+        remote_src: yes
+    - name: "Replace file with defult values"
+      copy:
+        src: /etc/ansible/defult
+        dest: /etc/ansible/hosts
+        remote_src: yes
+    - shell: aws ec2 describe-instances --filter | grep PublicIpAddress | awk '{print $2}' | cut -d '"' -f2 > /home/ec2-user/IPlist.txt
+      register: PublicIpAddress
+    - shell: cat /home/ec2-user/IPlist.txt >> /etc/ansible/hosts
