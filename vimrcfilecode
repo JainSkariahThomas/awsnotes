@@ -1,0 +1,6 @@
+#The Below code can be added in ~/.vimrc file so that we can easly work using vim editor in yaml files
+#Here the tab space and shift width is set to 2 , also high light the colum and the libe where the cursor is on at the moment
+
+set bg=dark
+syntax on
+autocmd FileType yaml setlocal ai ts=2 sw=2 et nu cuc cul
