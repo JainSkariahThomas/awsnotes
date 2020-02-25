@@ -1,0 +1,9 @@
+---
+- hosts: all
+  gather_facts: false
+ 
+  tasks:
+    name: Get CPU usage
+      shell: "top -b -n 1"
+  register: top
+

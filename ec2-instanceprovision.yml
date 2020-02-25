@@ -4,7 +4,7 @@
 - hosts: local
   connection: local
   gather_facts: true
-
+#Declare Variable that needed for the ec2 creation
   vars:
     key_name: awsofficekey
     region: us-east-2
@@ -12,14 +12,15 @@
     instance_type: t2.micro
     security_group: webserver_sg
     count: 1
+#Declare the Task First to Setup Secirity Group:
   tasks:
   - name: Create a security group
     ec2_group:
       name: "{{ security_group }}"
       description: The webservers security group
       region: "{{ region }}"
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
       rules:
         - proto: tcp
           from_port: 22
@@ -36,17 +37,19 @@
       rules_egress:
         - proto: all
           cidr_ip: 0.0.0.0/0
+#Declare steps tp upload Public_key to the server so that we can enable access to the ec2 Instance
   - name: Upload public key to AWS
     ec2_key:
       name: "{{ key_name }}"
-      key_material: "{{ lookup('file', '/root/Ansible/{{ key_name }}.pub') }}"
+      key_material: "{{ lookup('file', '/home/adminz/JAINAWS/Docker/awsnotes/{{ key_name }}.pub') }}"
       region: "{{ region }}"
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+#Declaring EC2 Launch configuration steps 
   - name: Launch the new EC2 Instance
     ec2:
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
       group: "{{ security_group }}"
       instance_type: "{{ instance_type }}"
       image: "{{ image }}"
@@ -63,8 +66,8 @@
 
   - name: Add tag to Instance(s)
     ec2_tag:
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
       resource: "{{ item.id }}" 
       region: "{{ region }}" 
       state: "present"

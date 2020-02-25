@@ -96,11 +96,11 @@
         dest: /var/www/html/www.linux.com/wp-config.php
         owner: apache
         group: apache
-**/
+/
 The below files are used to declare variable or we can direcly declare variables in  the ansible file 
 /
 #[root@ip-172-31-39-15 Ansible]# cat virtualhost.j2        
-## Created by ansible**
+## Created by ansible
 
 <virtualhost *:80>
     servername {{ domain }}

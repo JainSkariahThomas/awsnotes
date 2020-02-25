@@ -6,7 +6,7 @@
   vars:
     key_name: awsofficekey
     region: us-east-2
-    image: ami-0fc20dd1da406780b
+    image: ami-0e38b48473ea57778
     instance_type: t2.micro
     security_group: webserver_sg
     count: 1
@@ -16,8 +16,8 @@
       name: "{{ security_group }}"
       description: The webservers security group
       region: "{{ region }}"
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
       rules:
         - proto: tcp
           from_port: 22
@@ -37,14 +37,14 @@
   - name: Upload public key to AWS
     ec2_key:
       name: "{{ key_name }}"
-      key_material: "{{ lookup('file', '/root/Ansible/{{ key_name }}.pub') }}"
+      key_material: "{{ lookup('file', '/home/adminz/JAINAWS/Docker/awsnotes/{{ key_name }}.pub') }}"
       region: "{{ region }}"
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
   - name: Launch the new EC2 Instance
     ec2:
-      aws_access_key: "{{ ec2_access_key }}"
-      aws_secret_key: "{{ ec2_secret_key }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
       group: "{{ security_group }}"
       instance_type: "{{ instance_type }}"
       image: "{{ image }}"
